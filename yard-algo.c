@@ -1,90 +1,78 @@
 #include "yard-algo.h"
+#include <stdlib.h>
+#include <assert.h>
+#include <string.h>
+#include <assert.h>
 
-size_t __stacksize;
-size_t __queuesize;
-bool __mustbe_number;
+void _buildExpression (struct yardAlgo*, const char*, const enum yardTokenType);
 
-struct yardExpr* yardalgo_init ()
+struct yardAlgo* yard_make ()
 {
-    struct yardExpr* yarde = (struct yardExpr*) malloc(sizeof(struct yardExpr));
-    yarde->nums = (double*) malloc(0);
-    yarde->symbols = (enum yardTokenType*) malloc(0);
-    yarde->value = 0;
-
-    __stacksize = 0;
-    __queuesize = 0;
-    __mustbe_number = true;
-    return yarde;
+    struct yardAlgo* yarda = (struct yardAlgo*) malloc(sizeof(struct yardAlgo));
+    yarda->expression = (struct yardToken*) malloc(0);
+    yarda->symbols = (enum yardTokenType*) malloc(0);
+    yarda->numsymbols = 0;
+    yarda->sizexpr = 0;
+    return yarda;
 }
 
-bool yardalgo_pushToken (struct yardExpr* yarde, char* data)
+void yard_pushToken (struct yardAlgo* yarda, const char* token)
 {
-    assert(yarde);
-    assert(data);
+    assert(yarda);
+    assert(token);
 
-    if (__mustbe_number) {
-        yarde->nums = (double*) realloc(yarde->nums, ++__queuesize * sizeof(double));
-        yarde->nums[__queuesize - 1] = strtod(data, NULL);
-
-        __mustbe_number = false;
-        return true;
-    }
-    else {
-        yarde->symbols = (enum yardTokenType*) realloc(yarde->symbols, ++__stacksize * sizeof(enum yardTokenType));
-        enum yardTokenType type;
-        switch (data[0]) {
-            case '+' : { type = YARD_TOKEN_TYPE_ADD_OP; break; }
-            case '~' : { type = YARD_TOKEN_TYPE_SUB_OP; break; }
-            case '/' : { type = YARD_TOKEN_TYPE_DIV_OP; break; }
-            case '*' : { type = YARD_TOKEN_TYPE_MUL_OP; break; }
-            case '(' : { type = YARD_TOKEN_TYPE_B_PARN; break; }
-            case ')' : { type = YARD_TOKEN_TYPE_E_PARN; break; }
+    switch (token[0]) {
+        case '+': case '-':
+        case '*': case '/': {
+            yarda->symbols = (enum yardTokenType*) realloc(
+                yarda->symbols,
+                ++yarda->numsymbols * sizeof(enum yardTokenType)
+            );
+            yarda->symbols[yarda->numsymbols - 1] = token[0];
+            break;
         }
-
-        yarde->symbols[__stacksize - 1] = type;
-        __mustbe_number = true;
-        return true;
-    }
-
-    return false;
-}
-
-void yardalgo_perform (struct yardExpr* yarde)
-{
-    for (int i = 0; i < __queuesize; i++)
-        printf("%f, ", yarde->nums[i]);
-    for (int i = 0; i < __stacksize; i++)
-        printf("%c, ", yarde->symbols[i]);
-
-    for (size_t i = __stacksize - 1; i != -1; i--) {
-        enum yardTokenType op = yarde->symbols[i];
-        double nums[3] = {
-            yarde->nums[i],
-            yarde->nums[i + 1],
-            0
-        };
-        switch (op) {
-            case YARD_TOKEN_TYPE_ADD_OP : { nums[2] = nums[0] + nums[1]; break; }
-            case YARD_TOKEN_TYPE_SUB_OP : { nums[2] = nums[0] - nums[1]; break; }
-            case YARD_TOKEN_TYPE_DIV_OP : { nums[2] = nums[0] / nums[1]; break; }
-            case YARD_TOKEN_TYPE_MUL_OP : { nums[2] = nums[0] * nums[1]; break; }
+        default: {
+            _buildExpression(yarda, token, YARD_TOKEN_TYPE_NUM);
+            break;
         }
-
-        printf("\nCurrent: %f\n", nums[2]);
-        yarde->value = nums[2];
-        yarde->nums[i] = nums[2];
     }
-    printf("\n%f\n", yarde->value);
 }
 
-int main () {
-    char* x[] = {
-        "2", "~", "6", "*", "3"
+double yard_perform (struct yardAlgo* yarda)
+{
+    for (size_t i = 0; i < yarda->numsymbols; i++)
+        _buildExpression(yarda, (char*) &yarda->symbols[i], yarda->symbols[i]);
+
+    for (size_t i = 0; i < yarda->sizexpr; i++) {
+        printf("%s, ", yarda->expression[i].data);
+    }
+    return 0;
+}
+
+void _buildExpression (struct yardAlgo* yarda, const char* data, const enum yardTokenType type)
+{
+    yarda->expression = (struct yardToken*) realloc(
+        yarda->expression,
+        ++yarda->sizexpr * sizeof(struct yardToken)
+    );
+
+    struct yardToken newt = {
+        .data = (char*) malloc(strlen(data)),
+        .type = type
+    };
+    strcpy(newt.data, data);;
+    yarda->expression[yarda->sizexpr - 1] = newt;
+}
+
+int main ()
+{
+    struct yardAlgo *yardalgo = yard_make();
+    char* expr[] = {
+        "2", "+", "2"
     };
 
-    struct yardExpr* expr = yardalgo_init();
-    for (int i = 0; i < 5; i++)
-        yardalgo_pushToken(expr, x[i]);
-    yardalgo_perform(expr);
+    for (int i = 0; i < 3; i++)
+        yard_pushToken(yardalgo, expr[i]);
+    yard_perform(yardalgo);
     return 0;
 }
