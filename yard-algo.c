@@ -12,6 +12,7 @@ bool _isOperator (const char op)
 enum yardTokenType _isNumOrPar (const char*);
 void _pushIntoQueue (struct yardAlgo*, const char*, const enum yardTokenType);
 bool _samePrecedence (struct yardAlgo*, const enum yardTokenType);
+void _doArithmetic (double*, size_t*, const enum yardTokenType);
 
 struct yardAlgo* yard_make ()
 {
@@ -72,8 +73,25 @@ void yard_solve (struct yardAlgo* yarda)
         _pushIntoQueue(yarda, (char*) &yarda->stack[i], yarda->stack[i]);
     free(yarda->stack);
 
-    for (size_t i = 0; i < yarda->sizequeue; i++)
-        printf("%s\n", yarda->queue[i].data);
+    double* output = (double*) malloc(0);
+    size_t sizeout = 0;
+
+    for (size_t i = 0; i < yarda->sizequeue; i++) {
+        enum yardTokenType type = yarda->queue[i].type;
+
+        if (type != YARD_TOKEN_TYPE_NUM)
+            _doArithmetic(output, &sizeout, type);
+        else {
+            output = (double*) realloc(output, ++sizeout * sizeof(double));
+            output[sizeout - 1] = strtod(yarda->queue[i].data, NULL);
+        }
+        free(yarda->queue[i].data);
+    }
+
+    printf("%f\n", output[0]);
+    free(yarda->queue);
+    free(yarda);
+    free(output);
 }
 
 enum yardTokenType _isNumOrPar (const char* token)
@@ -126,14 +144,34 @@ bool _samePrecedence (struct yardAlgo* yarda, const enum yardTokenType curr)
     return isit;
 }
 
+void _doArithmetic (double* output, size_t* outsize, const enum yardTokenType type)
+{
+    double n1 = output[*outsize - 2];
+    double n2 = output[*outsize - 1];
+    double value = 0;
+
+    switch (type) {
+        case YARD_TOKEN_TYPE_ADD: { value = n1 + n2; break; }
+        case YARD_TOKEN_TYPE_SUB: { value = n1 - n2; break; }
+        case YARD_TOKEN_TYPE_MUL: { value = n1 * n2; break; }
+        case YARD_TOKEN_TYPE_DIV: {
+            assert(n2);
+        }
+    }
+
+    *outsize -= 1;
+    output = (double*) realloc(output, *outsize * sizeof(double));
+    output[*outsize - 1] = value;
+}
+
 int main ()
 {
     char* expr[] = {
-        "4", "+", "1", "-", "5", "+", "19", "-", "4", "+", "2"
+        "3", "*", "4"
     };
 
     struct yardAlgo* yalgo = yard_make();
-    for (size_t i = 0; i < 11; i++)
+    for (size_t i = 0; i < 3; i++)
         yard_evaluateToken(yalgo, expr[i]);
     yard_solve(yalgo);
     return 0;
