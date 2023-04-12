@@ -4,16 +4,43 @@
 #include <string.h>
 #include <ctype.h>
 
+/*
+ * ================================================
+ * Inline functions.
+ * ================================================
+ * */
 bool _isOperator (const char op)
 {
     return op == '+' || op == '-' || op == '*' || op == '/';
 }
 
+bool _samePrecedence (const enum yardTokenType top, const enum yardTokenType new)
+{
+    bool low = (top == '+' || top == '-') && (new == '+' || new == '-');
+    bool high = (top == '*' || top == '/') && (new == '*' || new == '/');
+    return low || high;
+}
+
+bool _lowPrecedence (const enum yardTokenType top, const enum yardTokenType new)
+{
+    return (new == '-' || new == '+') && (top == '*' || top == '/');
+}
+
+/*
+ * ================================================
+ * Defintion of funcions used only in this file.
+ * ================================================
+ * */
 enum yardTokenType _isNumOrPar (const char*);
 void _pushIntoQueue (struct yardAlgo*, const char*, const enum yardTokenType);
-bool _samePrecedence (struct yardAlgo*, const enum yardTokenType);
+void _precedenceIssue (struct yardAlgo*, enum yardTokenType);
 void _doArithmetic (double*, size_t*, const enum yardTokenType);
 
+/*
+ * ================================================
+ * Implementing functions of the header file.
+ * ================================================
+ * */
 struct yardAlgo* yard_make ()
 {
     struct yardAlgo* yarda = (struct yardAlgo*) malloc(sizeof(struct yardAlgo));
@@ -24,21 +51,12 @@ struct yardAlgo* yard_make ()
     return yarda;
 }
 
-/* Returns true if the token is where it gotta be, and false
- * if the order of the operation is given in a wrong way. Remember
- * this program works for tokens already parsed, however the program
- * will be able to analize if the expression was written in a right way. */
 bool yard_evaluateToken (struct yardAlgo* yarda, const char* token)
 {
     assert(yarda);
     assert(token);
 
-    /* Number -> Operator.
-     * Operator -> Number/Parentheses.
-     * Left parentheses -> Number.
-     * Right parentheses -> Operator. */
     static bool mustbe_opr = false;
-
     if (!mustbe_opr) {
         enum yardTokenType twas = _isNumOrPar(token);
         if (twas == YARD_TOKEN_TYPE_WTF)
@@ -52,17 +70,14 @@ bool yard_evaluateToken (struct yardAlgo* yarda, const char* token)
     else {
         if (!_isOperator(token[0]))
             return false;
-
+        _precedenceIssue(yarda, token[0]);
         mustbe_opr = false;
-        if (!_samePrecedence(yarda, token[0])) {
-            yarda->stack = (enum yardTokenType*) realloc(
-                yarda->stack,
-                ++yarda->sizestack * sizeof(enum yardTokenType)
-            );
-            yarda->stack[yarda->sizestack - 1] = token[0];
-        }
     }
 
+    /* Returns true if the token is where it gotta be, and false
+     * if the order of the operation is given in a wrong way. Remember
+     * this program works for tokens already parsed, however the program
+     * will be able to analize if the expression was written in a right way. */
     return true;
 }
 
@@ -94,6 +109,11 @@ void yard_solve (struct yardAlgo* yarda)
     free(output);
 }
 
+/*
+ * ================================================
+ * Implementing functions of the C file.
+ * ================================================
+ * */
 enum yardTokenType _isNumOrPar (const char* token)
 {
     const char fchar = token[0];
@@ -128,20 +148,22 @@ void _pushIntoQueue (struct yardAlgo* yarda, const char* data, const enum yardTo
     yarda->queue[yarda->sizequeue - 1] = newt;
 }
 
-bool _samePrecedence (struct yardAlgo* yarda, const enum yardTokenType curr)
+void _precedenceIssue (struct yardAlgo* yarda, enum yardTokenType incoming)
 {
-    if (!yarda->sizestack)
-        return false;
+    yarda->stack = (enum yardTokenType*) realloc(yarda->stack, ++yarda->sizestack * sizeof(enum yardTokenType));
+    yarda->stack[yarda->sizestack - 1] = incoming;
+    if (yarda->sizestack == 1)
+        return;
 
-    enum yardTokenType prev = yarda->stack[yarda->sizestack - 1];
-    bool isit = ((curr == '-' || curr == '+') && (prev == '+' || prev == '-')) ||
-                ((curr == '*' || curr == '*') && (prev == '*' || prev == '/'));
+    enum yardTokenType previous = yarda->stack[yarda->sizestack - 2];
+    while (_lowPrecedence(previous, incoming) || _samePrecedence(previous, incoming)) {
+        _pushIntoQueue(yarda, (char*) &previous, previous);
+        yarda->stack[yarda->sizestack - 2] = incoming;
+        yarda->stack = (enum yardTokenType*) realloc(yarda->stack, --yarda->sizestack * sizeof(enum yardTokenType));
 
-    if (isit) {
-        _pushIntoQueue(yarda, (char*) &prev, prev);
-        yarda->stack[yarda->sizestack - 1] = curr;
+        incoming = yarda->stack[yarda->sizestack - 1];
+        previous = yarda->stack[yarda->sizestack - 2];
     }
-    return isit;
 }
 
 void _doArithmetic (double* output, size_t* outsize, const enum yardTokenType type)
@@ -154,9 +176,7 @@ void _doArithmetic (double* output, size_t* outsize, const enum yardTokenType ty
         case YARD_TOKEN_TYPE_ADD: { value = n1 + n2; break; }
         case YARD_TOKEN_TYPE_SUB: { value = n1 - n2; break; }
         case YARD_TOKEN_TYPE_MUL: { value = n1 * n2; break; }
-        case YARD_TOKEN_TYPE_DIV: {
-            assert(n2);
-        }
+        case YARD_TOKEN_TYPE_DIV: { value = n1 / n2; break; }
     }
 
     *outsize -= 1;
@@ -166,13 +186,14 @@ void _doArithmetic (double* output, size_t* outsize, const enum yardTokenType ty
 
 int main ()
 {
-    char* expr[] = {
-        "3", "*", "4"
-    };
+    char* expr[] = {"3", "/", "0", "+", "1"};
 
     struct yardAlgo* yalgo = yard_make();
-    for (size_t i = 0; i < 3; i++)
-        yard_evaluateToken(yalgo, expr[i]);
+    for (size_t i = 0; i < 5; i++) {
+        if (!yard_evaluateToken(yalgo, expr[i])) {
+            puts("WRONG");
+        }
+    }
     yard_solve(yalgo);
     return 0;
 }
