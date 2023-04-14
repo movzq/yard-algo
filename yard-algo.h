@@ -23,12 +23,12 @@ struct yardAlgo {
     struct yardToken* queue;
     enum yardTokenType* stack;
 
-    size_t sizequeue;
-    size_t sizestack;
+    size_t queuesize;
+    size_t stacksize;
 };
 
 struct yardAlgo* yard_make ();
-bool yard_evaluateToken (struct yardAlgo*, const char*);
-void yard_solve (struct yardAlgo*);
+void yard_evaluateToken (struct yardAlgo*, const char*);
+double yard_solve (struct yardAlgo*);
 
 #endif
