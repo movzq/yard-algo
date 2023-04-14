@@ -1,0 +1,10 @@
+yard-algo.
+    Implementation of Shunting-yard algorithm created by "Edsger W. Dijkstra", this algorithm lets to any program
+    parse a infix notation expression to a postfix notation, which is so helpful to solve arithemetic expressions,
+    since that notations does not requiere the use of parentheses. The algorithm is already done for operations
+    such as addition, subtraction, multiplication and division, but i'll be adding more to make it stronger ;).
+
+    Resources:
+    * https://mathcenter.oxford.emory.edu/site/cs171/shuntingYardAlgorithm/
+
+    RIP Edsger W. Dijkstra.
