@@ -53,9 +53,8 @@ double yard_solve (struct yardAlgo* yarda)
             double thisvalue = strtod(yarda->queue[i].data, NULL);
             _pushIntoOutput(output, ++outsize, thisvalue);
         }
-        else {
+        else
             _performOperations(output, &outsize, yarda->queue[i].type);
-        }
 
         free(yarda->queue[i].data);
     }

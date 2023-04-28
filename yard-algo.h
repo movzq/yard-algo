@@ -22,7 +22,6 @@ struct yardToken {
 struct yardAlgo {
     struct yardToken* queue;
     enum yardTokenType* stack;
-
     size_t queuesize;
     size_t stacksize;
 };
